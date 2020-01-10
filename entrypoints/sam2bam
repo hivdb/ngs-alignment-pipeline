@@ -1,0 +1,12 @@
+#! /bin/bash
+
+set -e
+
+SAMFILE=$1
+BAMFILE=$2
+
+TMPFILE=/tmp/alignment.unsorted.bam
+
+samtools view -S -b $SAMFILE > $TMPFILE
+samtools sort $TMPFILE -o $BAMFILE
+samtools index $BAMFILE
