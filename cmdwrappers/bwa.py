@@ -3,6 +3,10 @@
 import os
 from .base import docker_execute, refinit_func, align_func
 
+BWA_ARGS = [
+    '-t', '3'
+]
+
 
 @refinit_func('bwa')
 def bwa_refinit(refseq):
@@ -28,6 +32,7 @@ def bwa_align(refseq, fastq1, fastq2, sam, indir, outdir):
     refdir, refname = os.path.split(refseq)
     command = [
         'bwa', 'mem',
+        *BWA_ARGS,
         '-o', '/shared/output/{}'.format(sam),
         '/shared/ref/{}'.format(refname),
         '/shared/input/{}'.format(fastq1),
