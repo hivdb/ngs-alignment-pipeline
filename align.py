@@ -196,8 +196,8 @@ def main(
         refseq = reference
         prevrefnas = fasta_first_sequence(refseq)
         all_prevrefnas = {prevrefnas}
-        with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir:
-            for i in range(max_iterative_circles):
+        for i in range(max_iterative_circles):
+            with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir:
                 suffix = '.{}'.format(
                     i if i + 1 < max_iterative_circles else 'final')
                 refinit(refseq)
