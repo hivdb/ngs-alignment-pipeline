@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 
 import os
-import click
 from .base import docker_execute, refinit_func, align_func
 
 
@@ -13,7 +12,7 @@ def bwa_refinit(refseq):
     ) for suffix in suffixes):
         # the reference index files are not previously generated
         refdir, refname = os.path.split(refseq)
-        logs = docker_execute([
+        docker_execute([
             'bwa', 'index',
             '/shared/ref/{}'.format(refname)
         ], {
@@ -22,7 +21,6 @@ def bwa_refinit(refseq):
                 'mode': 'rw'
             }
         })
-        click.echo(logs.decode('U8'))
 
 
 @align_func('bwa')

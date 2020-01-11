@@ -24,10 +24,10 @@ RUN cd /tmp && \
     chmod +x /opt/Tanoti/tanoti && \
     ln -s /opt/Tanoti/tanoti /usr/bin/tanoti
 COPY --from=shorah-builder /opt/shorah /opt/shorah
-COPY entrypoints/sam2bam entrypoints/bam2fasta /usr/bin/
+COPY entrypoints/sam2bam /usr/bin/
 RUN ln -s /opt/shorah/bin/shorah /usr/bin/shorah && \
     ln -s ../../../../bin /opt/shorah/lib/python3.7/site-packages/shorah && \
-    chmod +x /usr/bin/sam2bam /usr/bin/bam2fasta
+    chmod +x /usr/bin/sam2bam
 RUN mkdir -p /opt/indelfixer && cd /opt/indelfixer && \
     curl -sSLO https://github.com/cbg-ethz/InDelFixer/releases/download/v1.1/InDelFixer.jar
 WORKDIR /workspace

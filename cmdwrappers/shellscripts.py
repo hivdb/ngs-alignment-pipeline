@@ -25,7 +25,7 @@ def bam2fasta(refseq, bam, fasta, outdir):
     ], {
         refdir: {
             'bind': '/shared/ref',
-            'mode': 'ro'
+            'mode': 'rw'
         },
         outdir: {
             'bind': '/shared/output',

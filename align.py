@@ -3,28 +3,18 @@
 import os
 import re
 import click
+import tempfile
+import fastareader
+from sam2fasta import sam2fasta
 from itertools import combinations
 from collections import defaultdict
 from cmdwrappers import (
-    samtools, shellscripts,
+    samtools,
     get_programs, get_refinit, get_align
 )
 
-DOCKER_IMAGE = 'hivdb/five-prime-alignment-exp:latest'
-AUTOREMOVE_CONTAINERS = False
 FILENAME_DELIMITERS = (' ', '_', '-')
 PAIRED_FASTQ_MARKER = ('1', '2')
-REFINIT_FUNCTIONS = {}
-ALIGN_FUNCTIONS = {}
-
-BOWTIE2_ARGS = [
-    '--local',
-    '--threads', '3',
-    '--rdg', '15,3',  # read gap open, extend penalties
-    '--rfg', '15,3',  # reference gap open, extend penalties
-    # '--ma', '2',     # match bonus
-    # '--mp', '6',     # max mismatch penalty; lower qual = lower penalty
-]
 
 
 def find_paired_marker(text1, text2):
@@ -161,6 +151,17 @@ def replace_ext(filename, toext, fromext=None):
         return os.path.splitext(filename)[0] + toext
 
 
+def fasta_first_sequence(filename):
+    with open(filename) as fp:
+        return fastareader.load(fp)[0]['sequence']
+
+
+def calc_distance(seq1, seq2):
+    if len(seq1) != len(seq2):
+        raise RuntimeError('sequences are not the same size')
+    return sum(na1 != na2 for na1, na2 in zip(seq1, seq2)) / len(seq1)
+
+
 @click.command()
 @click.argument(
     'input_directory',
@@ -179,22 +180,51 @@ def replace_ext(filename, toext, fromext=None):
     required=True,
     type=click.Path(exists=True, file_okay=True,
                     dir_okay=False, resolve_path=True))
-def main(input_directory, output_directory, program, reference):
+@click.option('-i', '--iterative', is_flag=True)
+@click.option('--max-iterative-circles', default=20, type=int)
+def main(
+    input_directory, output_directory,
+    program, reference, iterative,
+    max_iterative_circles
+):
     refinit = get_refinit(program)
     align = get_align(program)
-    refinit(reference)
+    if not iterative:
+        max_iterative_circles = 1
     for dirpath, fnpair, pattern in find_paired_fastqs(input_directory):
         samfile = name_samfile(fnpair, pattern)
-        result = align(
-            reference, *fnpair, samfile,
-            dirpath, output_directory)
-        samtools.stats(samfile, output_directory)
-        bamfile = replace_ext(samfile, '.bam')
-        fastafile = replace_ext(samfile, '.fa')
-        shellscripts.sam2bam(samfile, bamfile, output_directory)
-        shellscripts.bam2fasta(reference, bamfile, fastafile, output_directory)
-        click.echo("{} created ({overall_rate}%)".format(samfile, **result))
-        break
+        refseq = reference
+        prevrefnas = fasta_first_sequence(refseq)
+        all_prevrefnas = {prevrefnas}
+        with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir:
+            for i in range(max_iterative_circles):
+                suffix = '.{}'.format(
+                    i if i + 1 < max_iterative_circles else 'final')
+                refinit(refseq)
+                align(
+                    refseq, *fnpair, samfile,
+                    dirpath, output_directory)
+                samtools.stats(samfile, output_directory)
+                # bamfile = replace_ext(samfile, suffix + '.bam')
+                fastafile = replace_ext(samfile, suffix + '.fas')
+                refnas = sam2fasta(
+                    prevrefnas, os.path.join(output_directory, samfile))
+                if refnas in all_prevrefnas:
+                    refseq = os.path.join(output_directory, fastafile)
+                else:
+                    refseq = os.path.join(tmpdir, fastafile)
+                with open(refseq, 'w') as fp:
+                    fp.write('>Consensus\n')
+                    fp.write(refnas)
+                if refnas in all_prevrefnas:
+                    click.echo('{} round {}: completed'.format(samfile, i + 1))
+                    break
+                click.echo(
+                    '{} round {}: consensus distance={:.4f}%'
+                    .format(samfile, i + 1,
+                            calc_distance(prevrefnas, refnas) * 100))
+                all_prevrefnas.add(refnas)
+                prevrefnas = refnas
 
 
 if __name__ == '__main__':
