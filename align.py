@@ -196,8 +196,8 @@ def main(
         refseq = reference
         prevrefnas = fasta_first_sequence(refseq)
         all_prevrefnas = {prevrefnas}
-        for i in range(max_iterative_circles):
-            with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir:
+        with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir:
+            for i in range(max_iterative_circles):
                 suffix = '.{}'.format(
                     i if i + 1 < max_iterative_circles else 'final')
                 refinit(refseq)
@@ -209,14 +209,17 @@ def main(
                 fastafile = replace_ext(samfile, suffix + '.fas')
                 refnas = sam2fasta(
                     prevrefnas, os.path.join(output_directory, samfile))
-                if refnas in all_prevrefnas:
-                    refseq = os.path.join(output_directory, fastafile)
-                else:
-                    refseq = os.path.join(tmpdir, fastafile)
+                refseq = os.path.join(tmpdir, fastafile)
                 with open(refseq, 'w') as fp:
                     fp.write('>Consensus\n')
                     fp.write(refnas)
                 if refnas in all_prevrefnas:
+                    with open(os.path.join(
+                        output_directory,
+                        replace_ext(samfile, '.lastref.fas')
+                    ), 'w') as fp:
+                        fp.write('>Consensus\n')
+                        fp.write(prevrefnas)
                     click.echo('{} round {}: completed'.format(samfile, i + 1))
                     break
                 click.echo(

@@ -2,7 +2,6 @@
 
 import os
 import re
-import click
 from .base import docker_execute, refinit_func, align_func
 
 BOWTIE2_ARGS = [
@@ -24,7 +23,7 @@ def bowtie2_refinit(refseq):
     ) for suffix in suffixes):
         # the reference index files are not previously generated
         refdir, refname = os.path.split(refpath)
-        logs = docker_execute([
+        docker_execute([
             'bowtie2-build',
             '/shared/ref/{}{}'.format(refname, ext),
             '/shared/ref/{}'.format(refname)
@@ -34,7 +33,6 @@ def bowtie2_refinit(refseq):
                 'mode': 'rw'
             }
         })
-        click.echo(logs.decode('U8'))
 
 
 @align_func('bowtie2')
