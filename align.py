@@ -194,7 +194,8 @@ def main(
     for dirpath, fnpair, pattern in find_paired_fastqs(input_directory):
         samfile = name_samfile(fnpair, pattern)
         refseq = reference
-        prevrefnas = fasta_first_sequence(refseq)
+        prevrefnas = prevrefnas_noins = fasta_first_sequence(refseq)
+        prevalnprofile = '.' * len(prevrefnas)
         all_prevrefnas = {prevrefnas}
         with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir:
             for i in range(max_iterative_circles):
@@ -209,7 +210,8 @@ def main(
                 fastafile = replace_ext(samfile, suffix + '.fas')
                 consname = replace_ext(samfile, '-consensus')
                 refnas, alnprofile = sam2fasta(
-                    prevrefnas, os.path.join(output_directory, samfile))
+                    prevrefnas, prevalnprofile,
+                    os.path.join(output_directory, samfile))
                 refnas_noins = ''.join(
                     na for na, p in zip(refnas, alnprofile) if p != '+')
                 refseq = os.path.join(tmpdir, fastafile)
@@ -224,14 +226,16 @@ def main(
                         fp.write('>{}\n'.format(consname))
                         fp.write(prevrefnas)
                         fp.write('\n>{}.profile\n'.format(consname))
-                        fp.write(alnprofile)
+                        fp.write(prevalnprofile)
                     click.echo('{} round {}: completed'.format(samfile, i + 1))
                     break
                 click.echo(
                     '{} round {}: consensus distance={:.4f}%'
                     .format(samfile, i + 1,
-                            calc_distance(prevrefnas, refnas) * 100))
+                            calc_distance(prevrefnas_noins, refnas_noins) * 100))
                 all_prevrefnas.add(refnas_noins)
+                prevrefnas_noins = refnas_noins
+                prevalnprofile = alnprofile
                 prevrefnas = refnas
 
 

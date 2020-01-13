@@ -104,7 +104,7 @@ def reads_producer(filename, offset):
             INPUT_QUEUE.put(chunk)
 
 
-def sam2fasta(refnas, sampath):
+def sam2fasta(refnas, refalnprofile, sampath):
     with pysam.AlignmentFile(sampath, 'rb') as samfile:
         # set until_eof=False to exclude unmapped reads
         totalreads = samfile.count(until_eof=False)
@@ -138,17 +138,18 @@ def sam2fasta(refnas, sampath):
                         nafreqs[(refpos, i)][na] += 1
     resultseq = []
     alnprofile = []
-    for refpos0, refna in enumerate(refnas):
+    for refpos0, (refna, refp) in enumerate(zip(refnas, refalnprofile)):
         refpos = refpos0 + 1
         if (refpos, 0) in nafreqs:
             counter = nafreqs[(refpos, 0)]
             total = sum(counter.values())
             (na, _), = counter.most_common(1)
             resultseq.append(na)
-            alnprofile.append(':')
+            alnprofile.append('+' if refp == '+' else ':')
             i = 1
             while (refpos, i) in nafreqs:
                 counter = nafreqs[(refpos, i)]
+                i += 1
                 (na, count), = counter.most_common(1)
                 if count * 2 >= total:
                     resultseq.append(na)
