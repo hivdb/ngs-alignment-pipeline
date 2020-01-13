@@ -20,15 +20,20 @@ RUN apt-get update -qq && \
 RUN cd /tmp && \
     curl -sSLO https://bioinformatics.cvr.ac.uk/wp-content/uploads/2019/11/Tanoti-1.2-Linux.tar.gz && \
     tar xf Tanoti-1.2-Linux.tar.gz && \
-    mv /tmp/Tanoti-1.2-Linux /opt/Tanoti && \
-    chmod +x /opt/Tanoti/tanoti && \
-    ln -s /opt/Tanoti/tanoti /usr/bin/tanoti
+    mv /tmp/Tanoti-1.2-Linux/* /usr/bin && \
+    rm -rf /tmp/Tanoti-1.2*
 COPY --from=shorah-builder /opt/shorah /opt/shorah
-COPY entrypoints/sam2bam /usr/bin/
+COPY entrypoints/sam2bam entrypoints/tanoti-wrapper /usr/bin/
 RUN ln -s /opt/shorah/bin/shorah /usr/bin/shorah && \
     ln -s ../../../../bin /opt/shorah/lib/python3.7/site-packages/shorah && \
-    chmod +x /usr/bin/sam2bam
+    chmod +x /usr/bin/sam2bam /usr/bin/tanoti-wrapper
 RUN mkdir -p /opt/indelfixer && cd /opt/indelfixer && \
     curl -sSLO https://github.com/cbg-ethz/InDelFixer/releases/download/v1.1/InDelFixer.jar
+RUN cd /tmp && \
+    curl -sSLO http://snap.cs.berkeley.edu/downloads/snap-beta.18-linux.tar.gz && \
+    tar xf snap-beta.18-linux.tar.gz && \
+    mv /tmp/snap-aligner /usr/bin/snap-aligner && \
+    chmod +x /usr/bin/snap-aligner && \
+    rm -rf /tmp/snap-beta.18-linux.tar.gz
 WORKDIR /workspace
 VOLUME /workspace

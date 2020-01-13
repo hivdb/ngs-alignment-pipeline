@@ -1,0 +1,33 @@
+#! /bin/bash
+
+set -e
+
+OPTIONS=""
+sampath=""
+
+mkdir /tmp/tanoti
+
+for opt in $@; do
+    if [[ $opt == *.gz ]]; then
+        cp $opt /tmp/tanoti
+        gzip -d /tmp/tanoti/$(basename $opt)
+        tmppath=$(basename $opt)
+        OPTIONS="$OPTIONS ${tmppath%.gz}"
+    elif [[ $opt =~ \.(fast[aq]|f[aq]|fas)$ ]]; then
+        cp $opt /tmp/tanoti
+        OPTIONS="$OPTIONS $(basename $opt)"
+    elif [[ $opt == *.sam ]]; then
+        sampath=$(realpath $opt)
+        OPTIONS="$OPTIONS $(basename $opt)"
+    else
+        OPTIONS="$OPTIONS $opt"
+    fi
+done
+
+if [ -z $sampath ]; then
+    echo "SAM file not specified"
+    exit 1
+fi
+cd /tmp/tanoti
+tanoti $OPTIONS
+cp /tmp/tanoti/$(basename $sampath) $sampath
