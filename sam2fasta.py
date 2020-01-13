@@ -133,15 +133,29 @@ def sam2fasta(refnas, sampath):
             elif err & ERR_LOW_QUAL:
                 num_lowqual += 1
             else:
-                for refpos, na in results:
-                    nafreqs[refpos][na[0]] += 1
+                for refpos, nas in results:
+                    for i, na in enumerate(nas):
+                        nafreqs[(refpos, i)][na] += 1
     resultseq = []
+    alnprofile = []
     for refpos0, refna in enumerate(refnas):
         refpos = refpos0 + 1
-        if refpos in nafreqs:
-            counter = nafreqs[refpos]
+        if (refpos, 0) in nafreqs:
+            counter = nafreqs[(refpos, 0)]
+            total = sum(counter.values())
             (na, _), = counter.most_common(1)
             resultseq.append(na)
+            alnprofile.append(':')
+            i = 1
+            while (refpos, i) in nafreqs:
+                counter = nafreqs[(refpos, i)]
+                (na, count), = counter.most_common(1)
+                if count * 2 >= total:
+                    resultseq.append(na)
+                    alnprofile.append('+')
+                else:
+                    break
         else:
             resultseq.append(refna)
-    return ''.join(resultseq)
+            alnprofile.append('.')
+    return ''.join(resultseq), ''.join(alnprofile)

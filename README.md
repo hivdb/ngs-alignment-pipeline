@@ -12,7 +12,7 @@
 # BAM to Consensus: https://samtools.github.io/bcftools/howtos/consensus-sequence.html
 
 ### ShoRAH
-./shorah amplicon -b 10_S10_L001_R1_001.bowtie2.sorted.bam -f shared/hxb2.fasta -r K03455.1:455-810 -m 0.5
+shorah -b 10_S10_L001_R1_001.bowtie2.sorted.bam -f shared/hxb2.fasta -r K03455.1:455-810 amplicon -m 0.5
 
 ### InDelFixer (Broken)
 ./indelfixer -i ../FASTQ_File/Raw/Run04/10_S10_L001_R1_001.fastq.gz -ir ../FASTQ_File/Raw/Run04/10_S10_L001_R2_001.fastq.gz -g shared/hxb2.fasta -illumina

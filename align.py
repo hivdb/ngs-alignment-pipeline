@@ -207,26 +207,31 @@ def main(
                 samtools.stats(samfile, output_directory)
                 # bamfile = replace_ext(samfile, suffix + '.bam')
                 fastafile = replace_ext(samfile, suffix + '.fas')
-                refnas = sam2fasta(
+                consname = replace_ext(samfile, '-consensus')
+                refnas, alnprofile = sam2fasta(
                     prevrefnas, os.path.join(output_directory, samfile))
+                refnas_noins = ''.join(
+                    na for na, p in zip(refnas, alnprofile) if p != '+')
                 refseq = os.path.join(tmpdir, fastafile)
                 with open(refseq, 'w') as fp:
-                    fp.write('>Consensus\n')
+                    fp.write('>{}\n'.format(consname))
                     fp.write(refnas)
-                if refnas in all_prevrefnas:
+                if refnas_noins in all_prevrefnas:
                     with open(os.path.join(
                         output_directory,
                         replace_ext(samfile, '.lastref.fas')
                     ), 'w') as fp:
-                        fp.write('>Consensus\n')
+                        fp.write('>{}\n'.format(consname))
                         fp.write(prevrefnas)
+                        fp.write('\n>{}.profile\n'.format(consname))
+                        fp.write(alnprofile)
                     click.echo('{} round {}: completed'.format(samfile, i + 1))
                     break
                 click.echo(
                     '{} round {}: consensus distance={:.4f}%'
                     .format(samfile, i + 1,
                             calc_distance(prevrefnas, refnas) * 100))
-                all_prevrefnas.add(refnas)
+                all_prevrefnas.add(refnas_noins)
                 prevrefnas = refnas
 
 
