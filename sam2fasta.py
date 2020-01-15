@@ -144,8 +144,9 @@ def sam2fasta(refnas, refalnprofile, sampath):
             counter = nafreqs[(refpos, 0)]
             total = sum(counter.values())
             (na, _), = counter.most_common(1)
-            resultseq.append(na)
-            alnprofile.append('+' if refp == '+' else ':')
+            resultseq.append(refna if na == '-' else na)
+            alnprofile.append(
+                '+' if refp == '+' else '-' if na == '-' else ':')
             i = 1
             while (refpos, i) in nafreqs:
                 counter = nafreqs[(refpos, i)]
