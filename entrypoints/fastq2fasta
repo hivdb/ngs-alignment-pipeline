@@ -1,0 +1,15 @@
+#! /bin/bash
+set -e
+
+if [ -z "$1" -o -z "$2" ]; then
+    echo "Usage: $1 <FASTQ_FILE> <FASTA_FILE>" >&2
+    exit 1
+fi
+
+CATCMD="cat $1"
+
+if [[ $1 == *.gz ]]; then
+    CATCMD="unpigz -c $1"
+fi
+
+$CATCMD | paste - - - - | cut -f 1,2 | sed "s/^@/>/;s/ [^[:space:]]*//" | tr "\t" "\n" > $2

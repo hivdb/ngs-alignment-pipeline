@@ -16,17 +16,18 @@ RUN curl -sSLO https://github.com/cbg-ethz/shorah/releases/download/v1.9.95/shor
 FROM ubuntu:19.04
 ENV LANG=C.UTF-8
 RUN apt-get update -qq && \
-    apt-get install -qqy perl bowtie2 bwa curl python3 openjdk-11-jre zlib1g libgsl23 libhts2 libboost-dev samtools bcftools
+    apt-get install -qqy perl bowtie2 bwa curl python3 openjdk-11-jre \
+    zlib1g libgsl23 libhts2 libboost-dev samtools bcftools pigz ncbi-blast+
 RUN cd /tmp && \
     curl -sSLO https://bioinformatics.cvr.ac.uk/wp-content/uploads/2019/11/Tanoti-1.2-Linux.tar.gz && \
     tar xf Tanoti-1.2-Linux.tar.gz && \
     mv /tmp/Tanoti-1.2-Linux/* /usr/bin && \
     rm -rf /tmp/Tanoti-1.2*
 COPY --from=shorah-builder /opt/shorah /opt/shorah
-COPY entrypoints/sam2bam entrypoints/tanoti-wrapper /usr/bin/
+COPY entrypoints/sam2bam entrypoints/tanoti-wrapper entrypoints/fastq2fasta entrypoints/blastfilter /usr/bin/
 RUN ln -s /opt/shorah/bin/shorah /usr/bin/shorah && \
     ln -s ../../../../bin /opt/shorah/lib/python3.7/site-packages/shorah && \
-    chmod +x /usr/bin/sam2bam /usr/bin/tanoti-wrapper
+    chmod +x /usr/bin/sam2bam /usr/bin/tanoti-wrapper /usr/bin/fastq2fasta /usr/bin/blastfilter
 RUN mkdir -p /opt/indelfixer && cd /opt/indelfixer && \
     curl -sSLO https://github.com/cbg-ethz/InDelFixer/releases/download/v1.1/InDelFixer.jar
 RUN cd /tmp && \

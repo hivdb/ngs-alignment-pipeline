@@ -9,6 +9,9 @@ verify_ssl = true
 click = "*"
 docker = "*"
 pysam = "*"
+scikit-bio = "*"
+numpy = "*"
+scipy = "*"
 
 [requires]
 python_version = "3.7"

@@ -20,3 +20,9 @@ shorah -b 10_S10_L001_R1_001.bowtie2.sorted.bam -f shared/hxb2.fasta -r K03455.1
 ### Tanoti (Broken)
 ./tanoti -r shared/hxb2.fasta -i ../FASTQ_File/Raw/Run04/10_S10_L001_R1_001.fastq.gz ../FASTQ_File/Raw/Run04/10_S10_L001_R2_001.fastq.gz -p 1 -o 10_S10_L001_R1_001.tanoti.sam
 ```
+
+## Run sam2haplo.py
+
+```
+pipenv run python sam2haplo.py shared/hxb2.fasta ../SAM_File/bowtie2_iterative2/14258B_L001_001.lastref.fas ../SAM_File/bowtie2_iterative2/14258B_L001_001.sam --ref-range 455-810 --pos-offset 454
+```

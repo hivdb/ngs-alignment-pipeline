@@ -1,0 +1,38 @@
+#! /bin/bash
+
+set -e
+
+INPUT_FASTQ=$1
+PRESERVE_HEADERS=$2
+OUTPUT_FASTQ=$3
+
+if [ -z "$INPUT_FASTQ" -o -z "$PRESERVE_HEADERS" -o -z "$OUTPUT_FASTQ" ]; then
+    echo "Usage: $0 <INPUT_FASTQ> <FILE_PRESERVE_HEADERS> <OUTPUT_FASTQ>" >&2
+    exit 1
+fi
+
+TMPDIR=$(mktemp -d)
+
+cat $PRESERVE_HEADERS | sed -z 's/\([^[:alnum:][:space:]?+{}()|]\)/\\\1/g;s/^/^@\\(/;s/\n\+$/\\)/;s/\n/\\|/g' > $TMPDIR/keep-patterns
+
+catfastq="cat $INPUT_FASTQ"
+
+if [[ $INPUT_FASTQ == *.gz ]]; then
+    catfastq="unpigz -c $INPUT_FASTQ"
+fi
+
+savefastq="cat"
+catoutput="cat $OUTPUT_FASTQ"
+
+if [[ $OUTPUT_FASTQ == *.gz ]]; then
+    savefastq="pigz -c"
+    catoutput="unpigz -c $OUTPUT_FASTQ"
+fi
+
+$catfastq | paste - - - - | grep -f $TMPDIR/keep-patterns | tr "\t" "\n" | $savefastq -c > $OUTPUT_FASTQ
+total=$($catfastq | wc -l)
+keep=$($catoutput | wc -l)
+
+echo "print('{}\t{:.2f}%'.format('$INPUT_FASTQ', $keep / $total * 100))" | python3
+
+rm -rf $TMPDIR
