@@ -6,3 +6,6 @@ shell:
 
 release:
 	@docker push hivdb/five-prime-alignment-exp:latest
+
+notebook:
+	@pipenv run jupyter notebook

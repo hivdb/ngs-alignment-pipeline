@@ -12,6 +12,11 @@ pysam = "*"
 scikit-bio = "*"
 numpy = "*"
 scipy = "*"
+jupyterlab = "*"
+notebook = "*"
+plotly = "*"
+pandas = "*"
+numba = "*"
 
 [requires]
 python_version = "3.7"

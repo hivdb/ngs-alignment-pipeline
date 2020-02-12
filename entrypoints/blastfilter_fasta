@@ -1,0 +1,22 @@
+#! /bin/bash
+
+set -e
+
+INPUT_FASTA=$1
+REFERENCE=$2
+PCNT_LIMIT=$3
+OUTPUT_HEADER=$4
+
+if [ -z "$INPUT_FASTA" -o -z "$REFERENCE" -o -z "$PCNT_LIMIT" -o -z "$OUTPUT_HEADER" ]; then
+    echo "Usage: $0 <INPUT_FASTA> <REFERENCE> <PCNT_LIMIT> <OUTPUT_HEADER>" >&2
+    exit 1
+fi
+
+TMPDIR=$(mktemp -d)
+
+makeblastdb -in $INPUT_FASTA -dbtype nucl -out $TMPDIR/srdb -title srdb -parse_seqids > /dev/null
+
+numreads=$((`wc -l $INPUT_FASTA | cut -d " " -f 1` / 2))
+blastn -db $TMPDIR/srdb -evalue 1e-50 -query $REFERENCE -perc_identity $PCNT_LIMIT -max_target_seqs $numreads -outfmt "6 sacc pident" > $OUTPUT_HEADER
+
+rm -rf $TMPDIR

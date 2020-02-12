@@ -24,10 +24,10 @@ RUN cd /tmp && \
     mv /tmp/Tanoti-1.2-Linux/* /usr/bin && \
     rm -rf /tmp/Tanoti-1.2*
 COPY --from=shorah-builder /opt/shorah /opt/shorah
-COPY entrypoints/sam2bam entrypoints/tanoti-wrapper entrypoints/fastq2fasta entrypoints/blastfilter /usr/bin/
+COPY entrypoints/sam2bam entrypoints/tanoti-wrapper entrypoints/fastq2fasta entrypoints/blastfilter entrypoints/blastfilter_fasta /usr/bin/
 RUN ln -s /opt/shorah/bin/shorah /usr/bin/shorah && \
     ln -s ../../../../bin /opt/shorah/lib/python3.7/site-packages/shorah && \
-    chmod +x /usr/bin/sam2bam /usr/bin/tanoti-wrapper /usr/bin/fastq2fasta /usr/bin/blastfilter
+    chmod +x /usr/bin/sam2bam /usr/bin/tanoti-wrapper /usr/bin/fastq2fasta /usr/bin/blastfilter /usr/bin/blastfilter_fasta
 RUN mkdir -p /opt/indelfixer && cd /opt/indelfixer && \
     curl -sSLO https://github.com/cbg-ethz/InDelFixer/releases/download/v1.1/InDelFixer.jar
 RUN cd /tmp && \

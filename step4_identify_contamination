@@ -1,0 +1,5 @@
+#! /bin/bash
+
+set -e
+
+pipenv run python export_pattern_characters.py ../PatternsAnalysis/5prime-90pcnt/all_patterns.csv ../PatternsAnalysis/5prime-90pcnt/all_patterns-removes.csv ../PatternsAnalysis/5prime-90pcnt/all_patterns.distribution-11-4-3.detail.csv
