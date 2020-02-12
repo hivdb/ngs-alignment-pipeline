@@ -5,5 +5,6 @@ set -e
 FASTQ_FOLDER=$1
 OUTPUT_FOLDER=$2
 
+mkdir -p $OUTPUT_FOLDER
 
-pipenv run python align.py $FASTQ_FOLDER $OUTPUT_FOLDER -p bowtie2 -r shared/hxb2.fasta --iterative > $OUTPUT_FOLDER/run.log
+pipenv run python align.py $FASTQ_FOLDER $OUTPUT_FOLDER -p bowtie2 -r refs/hxb2.fasta --iterative > $OUTPUT_FOLDER/run.log
