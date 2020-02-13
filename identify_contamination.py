@@ -36,13 +36,19 @@ def load_patterns(pattern_csv):
 
 
 def calc_score(dist_interperson, dist_intraperson, dist_intrasample):
-    outp = np.quantile(dist_interperson, 0.05)  # inter-person
-    inp = np.quantile(dist_intraperson, 0.05)  # intra-person
-    ins = np.quantile(dist_intrasample, 0.05)  # intra-sample
-    return (
-        abs(inp - ins) +  # large dist. distrib. diff comparing inp and ins
-        inp + ins - 2 * outp  # intra- distance greater than inter- distance
-    ), outp, inp, ins
+    quantiles = np.array([0.01, 0.05, 0.25, 0.5])
+    # inter-person
+    outp = (np.quantile(dist_interperson, quantiles)
+            if dist_interperson.size > 0 else np.array([-1] * quantiles.size))
+    # intra-person
+    inp = (np.quantile(dist_intraperson, quantiles)
+           if dist_intraperson.size > 0 else np.array([-1] * quantiles.size))
+    # intra-sample
+    ins = (np.quantile(dist_intrasample, quantiles)
+           if dist_intrasample.size > 0 else np.array([-1] * quantiles.size))
+    return (np.product(
+        inp * ins / outp ** 2
+    ), *outp, *inp, *ins)
 
 
 def na2int(na):
@@ -135,9 +141,18 @@ def main(pattern_csv, output_csv):
         'SampleName', 'Index', 'PtID', 'Pattern',
         'Count', 'Pcnt',
         'Score',
-        'OutP_5Pcnt',
-        'InP_5Pcnt',
-        'InS_5Pcnt',
+        'OutP_1Pcnt_Distance',
+        'OutP_5Pcnt_Distance',
+        'OutP_25Pcnt_Distance',
+        'OutP_50Pcnt_Distance',
+        'InP_1Pcnt_Distance',
+        'InP_5Pcnt_Distance',
+        'InP_25Pcnt_Distance',
+        'InP_50Pcnt_Distance',
+        'InS_1Pcnt_Distance',
+        'InS_5Pcnt_Distance',
+        'InS_25Pcnt_Distance',
+        'InS_50Pcnt_Distance',
         # *['OutP_eq{}'.format(d) for d in range(DIST_INTERPERSON_CUTOFF)],
         # 'OutP_gte{}'.format(DIST_INTERPERSON_CUTOFF),
         # *['InP_eq{}'.format(d) for d in range(DIST_INTRAPERSON_CUTOFF)],
