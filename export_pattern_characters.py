@@ -216,30 +216,56 @@ def auto_is_removed_2(dist_interperson, dist_intraperson, dist_intrasample):
         return np.count_nonzero(dist_intraperson < 2) == 0
 
 
-DIST_INTERPERSON_CUTOFF = 11
-DIST_INTRAPERSON_CUTOFF = 4
-DIST_INTRASAMPLE_CUTOFF = 3
+DIST_INTERPERSON_CUTOFF = 10
+DIST_INTRAPERSON_CUTOFF = 14
+DIST_INTRASAMPLE_CUTOFF = 12
 MIN_FLOAT = sys.float_info.min
 
 
 def calc_partial_score(dist_array, cutoff, sign=1):
     partials = []
-    total_dist = np.log10(len(dist_array) + MIN_FLOAT)
-    for dist in range(0, cutoff):
-        partials.append((np.log10(
-            np.count_nonzero(dist_array == dist) + MIN_FLOAT
-        ) - total_dist) * sign)
-    partials.append((
-        np.log10(np.count_nonzero(dist_array > dist) + MIN_FLOAT) - total_dist
-    ) * sign)
+    total = len(dist_array)
+    maxdist = np.max(dist_array)
+    for dist in range(0, max(cutoff + 1, maxdist)):
+        # partial = (
+        #     (np.e ** (sign * (cutoff - dist)) - 1) *
+        #     np.count_nonzero(dist_array == dist) / total
+        # )
+        partial = (
+            sign * (dist - cutoff) *
+            np.count_nonzero(dist_array == dist) / total
+        )
+        if dist <= cutoff:
+            partials.append(partial)
+        else:
+            partials[-1] += partial
+        # partials.append((np.log10(
+        #     np.count_nonzero(dist_array == dist) + MIN_FLOAT
+        # ) - total_dist) * sign)
+    # partials.append((
+    #     np.log10(np.count_nonzero(dist_array > dist)
+    #              + MIN_FLOAT) - total_dist
+    # ) * sign * -1)
+    # partials.append(
+    #     -1 * sign * (np.count_nonzero(dist_array > dist) + MIN_FLOAT)
+    # )
     return sum(partials), partials
 
 
 def calc_score(dist_interperson, dist_intraperson, dist_intrasample):
-    s1, p1 = calc_partial_score(dist_interperson, DIST_INTERPERSON_CUTOFF)
-    s2, p2 = calc_partial_score(dist_intraperson, DIST_INTRAPERSON_CUTOFF, -1)
-    s3, p3 = calc_partial_score(dist_intrasample, DIST_INTRASAMPLE_CUTOFF, -1)
-    return (s1 + s2 + s3, *(p1 + p2 + p3))
+    quantiles = np.array([0.01, 0.02, 0.05, 0.1])
+    # inter-person
+    outp = (np.quantile(dist_interperson, quantiles)
+            if dist_interperson.size > 0 else np.array([-1] * quantiles.size))
+    # intra-person
+    inp = (np.quantile(dist_intraperson, quantiles)
+           if dist_intraperson.size > 0 else np.array([-1] * quantiles.size))
+    # intra-sample
+    ins = (np.quantile(dist_intrasample, quantiles)
+           if dist_intrasample.size > 0 else np.array([-1] * quantiles.size))
+    return (np.max(
+        np.concatenate((inp / outp, ins / outp))
+    ), *outp, *inp, *ins)
 
 
 def na2int(na):
@@ -310,13 +336,16 @@ def dist2score(patterns):
                     dist_intraperson.append(dist)
             else:
                 dist_interperson.append(dist)
-        dist_interperson = np.array(dist_interperson)
-        dist_intraperson = np.array(dist_intraperson)
-        dist_intrasample = np.array(dist_intrasample)
-        yield calc_score(
-            dist_interperson,
-            dist_intraperson,
-            dist_intrasample
+        dist_interperson = np.array(sorted(dist_interperson))
+        dist_intraperson = np.array(sorted(dist_intraperson))
+        dist_intrasample = np.array(sorted(dist_intrasample))
+
+        yield (
+            calc_score(
+                dist_interperson,
+                dist_intraperson,
+                dist_intrasample
+            )
         )
 
 
@@ -334,12 +363,15 @@ def main(pattern_csv, removes_csv, output_csv):
         'SampleName', 'Index', 'PtID', 'Pattern',
         'Count', 'Pcnt', 'IsRemoved',
         'Score',
-        *['OutP_eq{}'.format(d) for d in range(DIST_INTERPERSON_CUTOFF)],
-        'OutP_gte{}'.format(DIST_INTERPERSON_CUTOFF),
-        *['InP_eq{}'.format(d) for d in range(DIST_INTRAPERSON_CUTOFF)],
-        'InP_gte{}'.format(DIST_INTRAPERSON_CUTOFF),
-        *['InS_eq{}'.format(d) for d in range(DIST_INTRASAMPLE_CUTOFF)],
-        'InS_gte{}'.format(DIST_INTRASAMPLE_CUTOFF),
+        # *['OutP_eq{}'.format(d) for d in range(DIST_INTERPERSON_CUTOFF)],
+        # 'OutP_gte{}'.format(DIST_INTERPERSON_CUTOFF),
+        # *['InP_eq{}'.format(d) for d in range(DIST_INTRAPERSON_CUTOFF)],
+        # 'InP_gte{}'.format(DIST_INTRAPERSON_CUTOFF),
+        # *['InS_eq{}'.format(d) for d in range(DIST_INTRASAMPLE_CUTOFF)],
+        # 'InS_gte{}'.format(DIST_INTRASAMPLE_CUTOFF),
+        'OutP_5Pcnt',
+        'InP_5Pcnt',
+        'InS_5Pcnt',
     ])
     # 'OutP_eq0', 'OutP_eq1', 'OutP_eq2',
     # 'OutP_eq3', 'OutP_eq4', 'OutP_eq5', 'OutP_gte6',

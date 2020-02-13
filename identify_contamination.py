@@ -36,7 +36,7 @@ def load_patterns(pattern_csv):
 
 
 def calc_score(dist_interperson, dist_intraperson, dist_intrasample):
-    quantiles = np.array([0.01, 0.05, 0.25, 0.5])
+    quantiles = np.array([0.01, 0.02, 0.05, 0.1])
     # inter-person
     outp = (np.quantile(dist_interperson, quantiles)
             if dist_interperson.size > 0 else np.array([-1] * quantiles.size))
@@ -46,8 +46,8 @@ def calc_score(dist_interperson, dist_intraperson, dist_intrasample):
     # intra-sample
     ins = (np.quantile(dist_intrasample, quantiles)
            if dist_intrasample.size > 0 else np.array([-1] * quantiles.size))
-    return (np.product(
-        inp * ins / outp ** 2
+    return (np.max(
+        np.concatenate((inp / outp, ins / outp))
     ), *outp, *inp, *ins)
 
 
@@ -142,17 +142,17 @@ def main(pattern_csv, output_csv):
         'Count', 'Pcnt',
         'Score',
         'OutP_1Pcnt_Distance',
+        'OutP_2Pcnt_Distance',
         'OutP_5Pcnt_Distance',
-        'OutP_25Pcnt_Distance',
-        'OutP_50Pcnt_Distance',
+        'OutP_10Pcnt_Distance',
         'InP_1Pcnt_Distance',
+        'InP_2Pcnt_Distance',
         'InP_5Pcnt_Distance',
-        'InP_25Pcnt_Distance',
-        'InP_50Pcnt_Distance',
+        'InP_10Pcnt_Distance',
         'InS_1Pcnt_Distance',
+        'InS_2Pcnt_Distance',
         'InS_5Pcnt_Distance',
-        'InS_25Pcnt_Distance',
-        'InS_50Pcnt_Distance',
+        'InS_10Pcnt_Distance',
         # *['OutP_eq{}'.format(d) for d in range(DIST_INTERPERSON_CUTOFF)],
         # 'OutP_gte{}'.format(DIST_INTERPERSON_CUTOFF),
         # *['InP_eq{}'.format(d) for d in range(DIST_INTRAPERSON_CUTOFF)],
