@@ -2,6 +2,8 @@
 
 set -e
 
+BASEDIR=$(dirname $0)
+
 INPUT_FASTQ=$1
 REFERENCE=$2
 PCNT_LIMIT=$3
@@ -14,10 +16,10 @@ fi
 
 TMPDIR=$(mktemp -d)
 
-fastq2fasta $INPUT_FASTQ $TMPDIR/shortreads.fas
+$BASEDIR/fastq2fasta $INPUT_FASTQ $TMPDIR/shortreads.fas
 makeblastdb -in $TMPDIR/shortreads.fas -dbtype nucl -out $TMPDIR/srdb -title srdb -parse_seqids > /dev/null
 
-numreads=$((`wc -l $TMPDIR/shortreads.fas | cut -d " " -f 1` / 2))
-blastn -db $TMPDIR/srdb -evalue 1e-50 -query $REFERENCE -perc_identity $PCNT_LIMIT -max_target_seqs $numreads -outfmt "6 sacc" > $OUTPUT_HEADER
+numreads=$((`wc -l $TMPDIR/shortreads.fas | awk '{print $1}'` / 2))
+blastn -db $TMPDIR/srdb -evalue 1e-50 -query $REFERENCE -perc_identity $PCNT_LIMIT -max_target_seqs $numreads -outfmt "6 sacc pident" > $OUTPUT_HEADER
 
 rm -rf $TMPDIR
