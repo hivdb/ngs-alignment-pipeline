@@ -3,14 +3,14 @@
 set -e
 
 SAMDIR=$1
-PATTERN_CSV=../PatternsAnalysis/5prime-90pcnt/all_patterns.csv
-REMOVES_CSV=../PatternsAnalysis/5prime-90pcnt/all_patterns-removes.csv
+PATTERN_CSV=$2
+REMOVES_CSV=$3
 
-pipenv run python filter_sam2.py shared/hxb2.fasta $SAMDIR $PATTERN_CSV $REMOVES_CSV --ref-range 455-810 --pos-offset 454
+pipenv run python filter_sam.py shared/hxb2.fasta $SAMDIR $PATTERN_CSV $REMOVES_CSV --ref-range 455-810 --pos-offset 454
 mkdir -p $SAMDIR/sorted
 cd $SAMDIR
 for file in `ls *.cleaned.bam`; do
-    samtools sort $file sorted/$file
+    samtools sort $file > sorted/$file
     samtools index sorted/$file
 done
 mv sorted/* .
