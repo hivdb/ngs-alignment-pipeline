@@ -1,7 +1,0 @@
-#! /bin/bash
-
-set -e
-
-SAMDIR=$1
-
-pipenv run python sam2mutcor.py refs/hxb2.fasta $SAMDIR --acc-cutoff 0.9 --ref-range 455-810 --pos-offset 454

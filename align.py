@@ -232,7 +232,8 @@ def main(
                 click.echo(
                     '{} round {}: consensus distance={:.4f}%'
                     .format(samfile, i + 1,
-                            calc_distance(prevrefnas_noins, refnas_noins) * 100))
+                            calc_distance(prevrefnas_noins,
+                                          refnas_noins) * 100))
                 all_prevrefnas.add(refnas_noins)
                 prevrefnas_noins = refnas_noins
                 prevalnprofile = alnprofile

@@ -1,0 +1,7 @@
+#! /bin/bash
+
+set -e
+
+SAMDIR=$1
+
+pipenv run python sam_analyses.py shared/hxb2.fasta $SAMDIR --acc-cutoff 1.0 --ref-range 455-810 --pos-offset 454

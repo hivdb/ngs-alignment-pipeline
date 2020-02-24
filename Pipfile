@@ -17,6 +17,7 @@ notebook = "*"
 plotly = "*"
 pandas = "*"
 numba = "*"
+ssw = "*"
 
 [requires]
 python_version = "3.7"
