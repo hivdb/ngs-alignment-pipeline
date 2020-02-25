@@ -194,7 +194,9 @@ def main(
     for dirpath, fnpair, pattern in find_paired_fastqs(input_directory):
         samfile = name_samfile(fnpair, pattern)
         refseq = reference
-        prevrefnas = prevrefnas_noins = fasta_first_sequence(refseq)
+        initrefnas = \
+            prevrefnas = \
+            prevrefnas_noins = fasta_first_sequence(refseq)
         prevalnprofile = '.' * len(prevrefnas)
         all_prevrefnas = {prevrefnas}
         with tempfile.TemporaryDirectory(dir="/tmp") as tmpdir:
@@ -210,7 +212,7 @@ def main(
                 fastafile = replace_ext(samfile, suffix + '.fas')
                 consname = replace_ext(samfile, '-consensus')
                 refnas, alnprofile = sam2fasta(
-                    prevrefnas, prevalnprofile,
+                    initrefnas, prevrefnas, prevalnprofile,
                     os.path.join(output_directory, samfile))
                 refnas_noins = ''.join(
                     na for na, p in zip(refnas, alnprofile) if p != '+')

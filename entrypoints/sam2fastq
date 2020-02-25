@@ -1,0 +1,15 @@
+#! /bin/bash
+
+set -e
+
+SAMDIR=$1
+OUTDIR=$2
+
+mkdir -p $OUTDIR
+
+for file in `ls $SAMDIR/*.sam $SAMDIR/*.bam 2>/dev/null`; do
+    fq1=$OUTDIR/`basename ${file%.[sb]am}_1.fastq.gz`
+    fq2=$OUTDIR/`basename ${file%.[sb]am}_2.fastq.gz`
+    echo $file
+    samtools fastq $file -1 $fq1 -2 $fq2
+done

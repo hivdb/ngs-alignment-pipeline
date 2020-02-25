@@ -6,7 +6,7 @@ import pysam
 import click
 
 import fastareader
-from patternutils import realign, iter_read_patterns
+from patternutils import iter_read_patterns
 
 REF_CODON_OFFSET = 0
 
@@ -19,16 +19,6 @@ MUTATION_PCNT_CUTOFF = 0.1
 ERR_OK = 0b00
 ERR_TOO_SHORT = 0b01
 ERR_LOW_QUAL = 0b10
-
-
-def attach_initref_pos(alnprofile):
-    result = []
-    pos0 = -1
-    for p in alnprofile:
-        if p != '+':
-            pos0 += 1
-        result.append((pos0, p))
-    return result
 
 
 def load_pattern_keeps(pattern_csv, removes_csv):
@@ -85,19 +75,14 @@ def main(samfolder, initref, pattern_csv, removes_csv, ref_range, pos_offset):
             # mutcoroutput = os.path.splitext(sampath)[0] + '.mutcor.csv'
             cleaned_output = os.path.splitext(sampath)[0] + '.cleaned.bam'
             with open(lastref) as lastref:
-                lastrefnas, _ = fastareader.load(lastref)
-            lastrefnas = lastrefnas['sequence']
-
-            # Realign lastref using initrefnas as the reference.
-            # The new alignment will be used to restore the initrefnas
-            # position numbers.
-            alnprofile = realign(initrefnas, lastrefnas)
+                _, lastrefprofile = fastareader.load(lastref)
+            lastrefprofile = lastrefprofile['sequence']
 
             with pysam.AlignmentFile(sampath) as samfile:
                 with pysam.AlignmentFile(cleaned_output, 'wb',
                                          template=samfile) as samout:
                     for read, pattern in iter_read_patterns(
-                        sampath, initrefnas, alnprofile,
+                        sampath, initrefnas, lastrefprofile,
                         refbegin, refend, pos_offset,
                         MUTATION_PCNT_CUTOFF
                     ):

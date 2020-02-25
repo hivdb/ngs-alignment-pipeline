@@ -7,7 +7,7 @@ import numpy as np
 from itertools import combinations, product
 from collections import defaultdict, Counter
 
-from patternutils import realign, find_patterns, filter_patterns
+from patternutils import find_patterns, filter_patterns
 
 from scipy import stats
 from skbio import DistanceMatrix
@@ -201,7 +201,7 @@ def export_tree_for_all(all_patterns, matrixoutput, treeoutput):
         writer = csv.writer(fp)
         writer.writerow(['##', *patternstrs])
         writer.writerows(dist_matrix)
-    if num_patterns > 10000:
+    if True or num_patterns > 10000:
         # TODO: add a switch to this
         # Too many patterns, unable to calculate dist_matrix
         return
@@ -240,16 +240,11 @@ def main(samfolder, initref, ref_range, pos_offset,
             patternoutput = os.path.splitext(sampath)[0] + '.pattern.csv'
             nucfreqoutput = os.path.splitext(sampath)[0] + '.nucfreq.csv'
             with open(lastref) as lastref:
-                lastrefnas, _ = fastareader.load(lastref)
-            lastrefnas = lastrefnas['sequence']
-
-            # Realign lastref using initrefnas as the reference.
-            # The new alignment will be used to restore the initrefnas
-            # position numbers.
-            alnprofile = realign(initrefnas, lastrefnas)
+                _, lastrefprofile = fastareader.load(lastref)
+            lastrefprofile = lastrefprofile['sequence']
 
             patterns, muts, nacounts = find_patterns(
-                sampath, initrefnas, alnprofile,
+                sampath, initrefnas, lastrefprofile,
                 refbegin, refend, pos_offset, MUTATION_PCNT_CUTOFF)
             filtered_patterns = filter_patterns(
                 patterns, muts.keys(),
