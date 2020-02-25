@@ -48,9 +48,9 @@ def realign(initref, lastref):
         #           no extra handling needed
         #   - +n-o: deletion only presents in new alignment:
         #           new deletion should be added to the multi-alignment
-        #   - -n+o: deletion only presents in old alignment
+        #   - -n+o: deletion only presents in old alignment:
         #           multi-alignment NAs mapped to the old deletion
-        #           should be removed to previous refpos
+        #           should be removed to previous refpos (as insertion)
         #   - -n-o: no deletion:
         #           no extra handling needed
         newdel = consna == '-'
