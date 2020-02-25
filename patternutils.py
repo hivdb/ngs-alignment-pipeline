@@ -7,6 +7,19 @@ from samutils import iter_paired_reads, iter_posnas
 CIGAR_PATTERN = re.compile(r'(\d+)([MNDI])')
 
 
+def str_index_all(text, char):
+    start = 0
+    indices = []
+    while True:
+        try:
+            idx = text.index(char, start)
+            indices.append(idx)
+            start = idx + 1
+        except ValueError:
+            break
+    return indices
+
+
 def realign(initref, lastref):
     """
     Realign lastref to initref
@@ -14,22 +27,48 @@ def realign(initref, lastref):
     The purpose is to generate a better alignment for restoring
     initref position numbers in multi-alignment results.
     """
-    aligner = ssw.Aligner()
+    cons_delpos = set(str_index_all(lastref, '-'))
     lastref = lastref.replace('-', '')
-    alignment = aligner.align(reference=initref, query=lastref)
-    cigar = alignment.cigar
-    alignment_profile = []
-    offset = 0
-    for size, flag in CIGAR_PATTERN.findall(cigar):
-        size = int(size)
-        if flag in 'MND':
-            # for M(atch), N(ull) and D(el) flags
-            alignment_profile += list(range(offset, offset + size))
-            offset += size
+    aligner = ssw.Aligner()
+    aln = aligner.align(reference=initref, query=lastref)
+    if aln.query_begin > 0 or aln.reference_begin > 0:
+        # Why?
+        raise RuntimeError('Consensus misaligned')
+    initref, _, lastref = aln.alignment
+    ref_pos0 = -1
+    alnprofile = []
+    for refna, consna in zip(initref, lastref):
+        if refna != '-':
+            ref_pos0 += 1
+
+        # The re-alignment could place deletions in slightly different
+        # place comparing to the original alignment. Four cases need
+        # to be considered:
+        #   - +n+o: deletion presents in both alignments:
+        #           no extra handling needed
+        #   - +n-o: deletion only presents in new alignment:
+        #           new deletion should be added to the multi-alignment
+        #   - -n+o: deletion only presents in old alignment
+        #           multi-alignment NAs mapped to the old deletion
+        #           should be removed to previous refpos
+        #   - -n-o: no deletion:
+        #           no extra handling needed
+        newdel = consna == '-'
+        olddel = len(alnprofile) in cons_delpos
+        while not newdel and olddel:  # -n+o
+            # mismatched old deletions
+            prev_refpos0, _ = alnprofile[-1]
+            alnprofile.append((prev_refpos0, -1))
+            olddel = len(alnprofile) in cons_delpos
         else:
-            # for I(ns) flags
-            alignment_profile += [offset] * size
-    return alignment_profile
+            if newdel:  # +n+o/+n-o
+                # new deletions
+                prev_refpos0, count = alnprofile[-1]
+                alnprofile[-1] = (prev_refpos0, count + 1)
+            else:  # -n-o
+                # agree, non deletion
+                alnprofile.append((ref_pos0, 0))
+    return alnprofile
 
 
 def map_posnas_to_initref(posnas, initrefnas, alnprofile):
@@ -49,8 +88,12 @@ def map_posnas_to_initref(posnas, initrefnas, alnprofile):
     initrefpos_map = defaultdict(list)
     for refpos, nas, _ in posnas:
         refpos0 = refpos - 1
-        initrefpos0 = alnprofile[refpos0]
+        initrefpos0, modifier = alnprofile[refpos0]
         initrefpos_map[initrefpos0].append(nas)
+        while modifier > 0:
+            initrefpos0 += 1
+            modifier -= 1
+            initrefpos_map[initrefpos0].append('-')
     for initrefpos0, nas in sorted(initrefpos_map.items()):
         nas = ''.join(nas)
         if len(nas) > 1:
