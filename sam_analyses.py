@@ -1,15 +1,13 @@
 #! /usr/bin/env python
 
 import os
-import re
 import csv
-import ssw
 import click
 import numpy as np
 from itertools import combinations, product
 from collections import defaultdict, Counter
 
-from samreader import iter_paired_reads
+from patternutils import realign, find_patterns, filter_patterns
 
 from scipy import stats
 from skbio import DistanceMatrix
@@ -18,9 +16,6 @@ from skbio.tree import nj
 import fastareader
 
 MUTATION_PCNT_CUTOFF = 0.1
-PATTERN_PCNT_IDV_CUTOFF = 0.01
-PATTERN_PCNT_ACC_CUTOFF = 0.9
-MISSING_POSITION_THRESHOLD = 10
 
 LANL_NAPCNTS = {}
 LANL_CONSENSUS = {}
@@ -29,204 +24,6 @@ with open('NAPcnts_Dec10_Group_M_Only.csv') as fp:
     for row in reader:
         LANL_NAPCNTS[(int(row['Pos']), row['Nuc'])] = float(row['Prev']) / 100
         LANL_CONSENSUS[int(row['Pos'])] = row['LANLCons']
-
-
-def attach_initref_pos(alnprofile):
-    result = []
-    pos0 = -1
-    for p in alnprofile:
-        if p != '+':
-            pos0 += 1
-        result.append((pos0, p))
-    return result
-
-
-CIGAR_PATTERN = re.compile(r'(\d+)([MNDI])')
-
-
-def swalign(reference, query):
-    aligner = ssw.Aligner()
-    alignment = aligner.align(reference=reference, query=query)
-    cigar = alignment.cigar
-    alignment_profile = []
-    offset = 0
-    for size, flag in CIGAR_PATTERN.findall(cigar):
-        size = int(size)
-        if flag in 'MND':
-            # for M(atch), N(ull) and D(el) flags
-            alignment_profile += list(range(offset, offset + size))
-            offset += size
-        else:
-            # for I(ns) flags
-            alignment_profile += [offset] * size
-    return alignment_profile
-
-
-def map_allnas_to_initref(allnas, initrefnas, alnprofile):
-    """
-    Re-map an iteratively aligned reads to the original reference
-
-    The position numbers of original reference (initref) was lost during
-    the iterative alignment. This generator function restores the position
-    numbers by using information from alignment profile list (alnprofile).
-
-    This generator produces a tuple of three elements:
-      - `position`: The original reference position minus `pos_offset`.
-      - `nas`: Nucleic acid notations of this position. The insertion gap is
-        represented in higher numbers (>1) of `nas`.
-      - `refna`: Nucleic acid notation of the orig. reference at this positon.
-    """
-    initrefpos_map = defaultdict(list)
-    for refpos, nas, _ in allnas:
-        refpos0 = refpos - 1
-        initrefpos0 = alnprofile[refpos0]
-        initrefpos_map[initrefpos0].append(nas)
-    for initrefpos0, nas in sorted(initrefpos_map.items()):
-        nas = ''.join(nas)
-        if len(nas) > 1:
-            # remove next-to-insertion deletions
-            nas = nas.replace('-', '')
-        initrefpos = initrefpos0 + 1
-        refna = initrefnas[initrefpos0]
-        yield initrefpos, nas, refna
-
-
-def trim_and_offset_allnas(allnas, refbegin, refend, ref_offset):
-    """
-    Trim input `allnas` and offset the position by `ref_offset
-    """
-    for refpos, nas, refna in allnas:
-        if refpos < refbegin or refpos > refend:
-            continue
-        rel_refpos = refpos - ref_offset
-        yield rel_refpos, nas, refna
-
-
-def replace_indel_notations(allnas):
-    """
-    Replace the indel notations from long NAs and "-" to "ins" and "del"
-    """
-    for refpos, nas, refna in allnas:
-        if len(nas) > 1:
-            yield refpos, 'ins', refna
-        else:
-            yield refpos, nas.replace('-', 'del'), refna
-
-
-def extract_mutations(allnas):
-    """
-    Extract mutations (diff from refna)
-
-    Here we assume that refna doesn't have indels
-    """
-    return ((p, n, r) for p, n, r in allnas if n != r)
-
-
-def extract_positions(allnas):
-    """Extract positions"""
-    return (p for p, _, _ in allnas)
-
-
-def find_patterns(sampath, initrefnas, alnprofile,
-                  refbegin, refend, pos_offset):
-    patterns = Counter()
-    mutcounts = Counter()
-    nacounts = Counter()
-    for header, allnas in iter_paired_reads(sampath):
-
-        # pre-process allnas
-        allnas = map_allnas_to_initref(allnas, initrefnas, alnprofile)
-        allnas = trim_and_offset_allnas(allnas, refbegin, refend, pos_offset)
-        allnas = set(replace_indel_notations(allnas))
-
-        # extract mutations & positions
-        mutations = set(extract_mutations(allnas))
-        coverage = set(extract_positions(allnas))
-
-        if allnas:
-            # pattern counter ++
-            patterns[(tuple(sorted(mutations)),
-                      tuple(sorted(coverage)))] += 1
-
-            # mutation counter ++
-            mutcounts += Counter(mutations)
-
-            # nucleic acid counter ++
-            nacounts += Counter(allnas)
-
-            # position counter ++
-            nacounts += Counter({(pos, None, refna)
-                                 for pos, _, refna in allnas})
-
-    # find out mutations about MUTATION_PCNT_CUTOFF
-    keepmuts = {}
-    for (pos, na, refna), count in mutcounts.items():
-        pcnt = count / nacounts[(pos, None, refna)]
-        if pcnt >= MUTATION_PCNT_CUTOFF:
-            keepmuts[(pos, na, refna)] = pcnt
-    keepmutset = set(keepmuts.keys())
-
-    # remove mutations below MUTATION_PCNT_CUTOFF from patterns and re-count
-    final_patterns = Counter()
-    for (pattern, coverage), count in patterns.items():
-        pattern = tuple(sorted(set(pattern) & keepmutset))
-        final_patterns[(pattern, coverage)] += count
-    return final_patterns, keepmuts, nacounts
-
-
-def filter_patterns(patterns, muts, remove_partials=True):
-    """Apply filter rules to patterns generated by `find_patterns`
-
-    Rules:
-
-      - MISSING_POSITION_THRESHOLD: Without remove_partials=True, the
-        function allows to keep a partial pattern, if its position coverage
-        is above this threshold. The pattern will be furtherly judged by
-        the two below rules.
-      - PATTERN_PCNT_ACC_CUTOFF: Sorted patterns by percent decendingly,
-        then retain the top PATTERN_PCNT_ACC_CUTOFF (0-1.0) of patterns.
-      - PATTERN_PCNT_IDV_CUTOFF: Patterns above this threshold are all
-        kept no matter to PATTERN_PCNT_ACC_CUTOFF set.
-
-    """
-    collapsed = Counter()
-    total = sum(patterns.values())
-    idv_cutoff = total * PATTERN_PCNT_IDV_CUTOFF
-    acc_cutoff = total * PATTERN_PCNT_ACC_CUTOFF
-    mutpositions = {p for p, _, _ in muts}
-    for (pattern, coverage), count in patterns.items():
-        coverage = set(coverage)
-        if remove_partials:
-            # Partial covered pattern is not allowed
-            # if specified remove_partials=True.
-            if not coverage.issupperset(mutpositions):
-                continue
-        else:
-            # Partial covered pattern is allowed.
-            # Populate missed positions into the pattern
-            pattern = set(pattern)
-            missed = set()
-            for pos, _, ref in muts:
-                if pos not in coverage:
-                    pattern.add((pos, '.', ref))
-                    missed.add(pos)
-
-            # check and skip if the number of missed
-            # positions exceeds threshold
-            if len(missed) > MISSING_POSITION_THRESHOLD:
-                continue
-            pattern = tuple(sorted(pattern))
-
-        collapsed[pattern] += count
-
-    results = []
-    countsum = 0
-    for pattern, count in collapsed.most_common():
-        if countsum > acc_cutoff and count < idv_cutoff:
-            break
-        results.append([pattern, count, count / total])
-        countsum += count
-    return results
 
 
 def export_pattern_table(patterns, muts, patternoutput):
@@ -404,7 +201,9 @@ def export_tree_for_all(all_patterns, matrixoutput, treeoutput):
         writer = csv.writer(fp)
         writer.writerow(['##', *patternstrs])
         writer.writerows(dist_matrix)
-    if PATTERN_PCNT_ACC_CUTOFF == 1:
+    if num_patterns > 10000:
+        # TODO: add a switch to this
+        # Too many patterns, unable to calculate dist_matrix
         return
     dist_matrix = DistanceMatrix(dist_matrix, patternstrs)
     tree = nj(dist_matrix)
@@ -419,10 +218,11 @@ def export_tree_for_all(all_patterns, matrixoutput, treeoutput):
     'samfolder', type=click.Path(dir_okay=True, exists=True))
 @click.option('--ref-range', default='0-99999')
 @click.option('--pos-offset', type=int, default=0)
-@click.option('--acc-cutoff', type=float, required=True)
-def main(samfolder, initref, ref_range, pos_offset, acc_cutoff):
-    global PATTERN_PCNT_ACC_CUTOFF
-    PATTERN_PCNT_ACC_CUTOFF = acc_cutoff
+@click.option('--idv-cutoff', type=float, required=True, default=0.01)
+@click.option('--acc-cutoff', type=float, required=True, default=0.9)
+@click.option('--miss-pos-cutoff', type=int, required=True, default=10)
+def main(samfolder, initref, ref_range, pos_offset,
+         idv_cutoff, acc_cutoff, miss_pos_cutoff):
     refbegin, refend = [int(r) for r in ref_range.split('-', 1)]
     initrefnas, = fastareader.load(initref)
     initrefnas = initrefnas['sequence']
@@ -440,18 +240,21 @@ def main(samfolder, initref, ref_range, pos_offset, acc_cutoff):
             patternoutput = os.path.splitext(sampath)[0] + '.pattern.csv'
             nucfreqoutput = os.path.splitext(sampath)[0] + '.nucfreq.csv'
             with open(lastref) as lastref:
-                lastref, _ = fastareader.load(lastref)
-            lastref = lastref['sequence']
+                lastrefnas, _ = fastareader.load(lastref)
+            lastrefnas = lastrefnas['sequence']
 
             # Realign lastref using initrefnas as the reference.
             # The new alignment will be used to restore the initrefnas
             # position numbers.
-            alnprofile = swalign(initrefnas, lastref)
+            alnprofile = realign(initrefnas, lastrefnas)
 
             patterns, muts, nacounts = find_patterns(
                 sampath, initrefnas, alnprofile,
-                refbegin, refend, pos_offset)
-            filtered_patterns = filter_patterns(patterns, muts.keys(), False)
+                refbegin, refend, pos_offset, MUTATION_PCNT_CUTOFF)
+            filtered_patterns = filter_patterns(
+                patterns, muts.keys(),
+                idv_cutoff, acc_cutoff, miss_pos_cutoff,
+                remove_partials=False)
 
             export_pattern_table(filtered_patterns, muts, patternoutput)
             export_nucfreq_table(nacounts, nucfreqoutput)
@@ -466,7 +269,11 @@ def main(samfolder, initref, ref_range, pos_offset, acc_cutoff):
     all_patterns = [
         (samplename, *ptnresult)
         for samplename, ptns in all_patterns
-        for ptnresult in filter_patterns(ptns, all_muts, False)
+        for ptnresult in filter_patterns(
+            ptns, all_muts,
+            idv_cutoff, acc_cutoff, miss_pos_cutoff,
+            remove_partials=False
+        )
     ]
     export_all_pattern_table(
         all_patterns, all_muts,

@@ -2,12 +2,12 @@
 
 from collections import defaultdict, Counter
 
-from samreader import iter_paired_reads
+from samreader import iter_allnas
 
 
 def sam2fasta(refnas, refalnprofile, sampath):
     nafreqs = defaultdict(Counter)
-    for _, allnas in iter_paired_reads(sampath):
+    for _, allnas in iter_allnas(sampath):
         for refpos, nas, _ in allnas:
             for i, na in enumerate(nas):
                 nafreqs[(refpos, i)][na] += 1
