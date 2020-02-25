@@ -35,8 +35,8 @@ def load_pattern_keeps(pattern_csv, removes_csv):
         if index in removes_indice:
             continue
         samplename = row.pop('SampleName')
-        row.pop('Count')
-        row.pop('Pcnt')
+        row.pop('Count', None)
+        row.pop('Pcnt', None)
         pattern = set()
         for pos, na in row.items():
             if na in ('-', '.'):
