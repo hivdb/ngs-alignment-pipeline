@@ -44,12 +44,17 @@ def bowtie2_align(refseq, fastq1, fastq2, sam, indir, outdir):
         *BOWTIE2_ARGS,
         '-x', '/shared/ref/{}'.format(refname),
         '-S', '/shared/output/{}'.format(sam),
-        '-1', '/shared/input/{}'.format(fastq1),
     ]
     if fastq2:
         command.extend([
+            '-1', '/shared/input/{}'.format(fastq1),
             '-2', '/shared/input/{}'.format(fastq2)
         ])
+    else:
+        command.extend([
+            '-r', '/shared/input/{}'.format(fastq1)
+        ])
+    print(command)
     logs = docker_execute(
         command,
         {
