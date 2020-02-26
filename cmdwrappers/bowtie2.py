@@ -54,7 +54,6 @@ def bowtie2_align(refseq, fastq1, fastq2, sam, indir, outdir):
         command.extend([
             '-r', '/shared/input/{}'.format(fastq1)
         ])
-    print(command)
     logs = docker_execute(
         command,
         {
