@@ -1,0 +1,18 @@
+#! /bin/bash
+
+# Alternative way of clean sam files - using barcode table
+
+set -e
+
+SAMDIR=$1
+
+mkdir -p $SAMDIR/sorted
+cd $SAMDIR
+for file in `ls *.sam`; do
+    cleanedbam=${file%.sam}.clean.bam
+    (head -3 $file; \grep -Ff ${file%.sam}.cleaned.header.txt $file) | samtools view - -o $cleanedbam
+    samtools sort $cleanedbam > sorted/$cleanedbam
+    samtools index sorted/$cleanedbam
+done
+mv sorted/* .
+rm -rf sorted
