@@ -33,7 +33,7 @@ def map_posnas_to_initref(posnas, initrefnas, alnprofile):
 
 def trim_and_offset_posnas(posnas, refbegin, refend, ref_offset):
     """
-    Trim input `posnas` and offset the position by `ref_offset
+    Trim input `posnas` and offset the position by `ref_offset`
     """
     for refpos, nas, refna in posnas:
         if refpos < refbegin or refpos > refend:
@@ -42,13 +42,16 @@ def trim_and_offset_posnas(posnas, refbegin, refend, ref_offset):
         yield rel_refpos, nas, refna
 
 
-def replace_indel_notations(posnas):
+def replace_indel_notations(posnas, preserve_ins_detail):
     """
     Replace the indel notations from long NAs and "-" to "ins" and "del"
     """
     for refpos, nas, refna in posnas:
         if len(nas) > 1:
-            yield refpos, 'ins', refna
+            if preserve_ins_detail:
+                yield refpos, nas, refna
+            else:
+                yield refpos, 'ins', refna
         else:
             yield refpos, nas.replace('-', 'del'), refna
 
@@ -68,14 +71,15 @@ def extract_positions(posnas):
 
 
 def adjust_posnas(all_posnas, initrefnas, alnprofile,
-                  refbegin, refend, pos_offset):
+                  refbegin, refend, pos_offset,
+                  preserve_ins_detail):
     """Apply pre-process steps for header_posnas"""
     for header, posnas in all_posnas:
 
         # pre-process posnas
         posnas = map_posnas_to_initref(posnas, initrefnas, alnprofile)
         posnas = trim_and_offset_posnas(posnas, refbegin, refend, pos_offset)
-        posnas = set(replace_indel_notations(posnas))
+        posnas = set(replace_indel_notations(posnas, preserve_ins_detail))
 
         yield header, posnas
 
@@ -142,13 +146,13 @@ def attach_initref_pos(alnprofile):
 
 def _internal_find_patterns(sampath, initrefnas, alnprofile,
                             refbegin, refend, pos_offset,
-                            mutation_pcnt_cutoff):
+                            mutation_pcnt_cutoff, preseve_ins_detail):
     alnprofile = attach_initref_pos(alnprofile)
     all_paired_reads = list(iter_paired_reads(sampath))
     all_posnas = iter_posnas(all_paired_reads)
     all_posnas = list(
         adjust_posnas(all_posnas, initrefnas, alnprofile,
-                      refbegin, refend, pos_offset)
+                      refbegin, refend, pos_offset, preseve_ins_detail)
     )
     patterns = list(iter_patterns(all_posnas))
 
@@ -178,11 +182,12 @@ def iter_read_patterns(sampath, initrefnas, alnprofile,
 
 def find_patterns(sampath, initrefnas, alnprofile,
                   refbegin, refend, pos_offset,
-                  mutation_pcnt_cutoff):
+                  mutation_pcnt_cutoff,
+                  preseve_ins_detail):
     _, patterns, keepmuts, nacounts = _internal_find_patterns(
         sampath, initrefnas, alnprofile,
         refbegin, refend, pos_offset,
-        mutation_pcnt_cutoff)
+        mutation_pcnt_cutoff, preseve_ins_detail)
 
     pattern_counts = Counter()
     for pattern, cov, count in patterns:

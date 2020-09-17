@@ -44,7 +44,7 @@ def export_pattern_table(patterns, muts, patternoutput):
         ptnwriter.writerows(sorted(rows))
 
 
-def export_nucfreq_table(nacounts, nucfreqoutput):
+def export_nucfreq_table(nacounts, nucfreqoutput, preserve_ins_detail):
     with open(nucfreqoutput, 'w') as nucfreqoutput:
         totals = [(m, c) for m, c in nacounts.items()
                   if m[1] is None]
@@ -52,8 +52,21 @@ def export_nucfreq_table(nacounts, nucfreqoutput):
         nfwriter.writerow(['Pos', 'HXB2', 'LANLCons',
                            'Nuc', 'Count', 'Total', 'Pcnt', 'Prev'])
         for (pos, _, ref), total in sorted(totals):
-            for na in ('A', 'C', 'G', 'T', 'ins', 'del'):
+            options = ['A', 'C', 'G', 'T']
+            if preserve_ins_detail:
+                for _pos, na, _ in nacounts.keys():
+                    if pos == _pos and na and \
+                            len(na) > 1 and na not in ('ins', 'del'):
+                        options.append(na)
+            options.append('ins')
+            options.append('del')
+            ins_count = 0
+            for na in options:
                 count = nacounts[(pos, na, ref)]
+                if len(na) > 1 and na not in ('ins', 'del'):
+                    ins_count += count
+                if na == 'ins':
+                    count = ins_count
                 nfwriter.writerow([
                     pos, ref,
                     LANL_CONSENSUS.get(pos),
@@ -221,8 +234,12 @@ def export_tree_for_all(all_patterns, matrixoutput, treeoutput):
 @click.option('--idv-cutoff', type=float, required=True, default=0.01)
 @click.option('--acc-cutoff', type=float, required=True, default=0.9)
 @click.option('--miss-pos-cutoff', type=int, required=True, default=10)
+@click.option(
+    '--preserve-ins-detail', is_flag=True,
+    help='Preserve insertion detail or just use "ins"')
 def main(samfolder, initref, ref_range, pos_offset,
-         idv_cutoff, acc_cutoff, miss_pos_cutoff):
+         idv_cutoff, acc_cutoff, miss_pos_cutoff,
+         preserve_ins_detail):
     refbegin, refend = [int(r) for r in ref_range.split('-', 1)]
     initrefnas, = fastareader.load(initref)
     initrefnas = initrefnas['sequence']
@@ -245,14 +262,16 @@ def main(samfolder, initref, ref_range, pos_offset,
 
             patterns, muts, nacounts = find_patterns(
                 sampath, initrefnas, lastrefprofile,
-                refbegin, refend, pos_offset, MUTATION_PCNT_CUTOFF)
+                refbegin, refend, pos_offset, MUTATION_PCNT_CUTOFF,
+                preserve_ins_detail
+            )
             filtered_patterns = filter_patterns(
                 patterns, muts.keys(),
                 idv_cutoff, acc_cutoff, miss_pos_cutoff,
                 remove_partials=False)
 
             export_pattern_table(filtered_patterns, muts, patternoutput)
-            export_nucfreq_table(nacounts, nucfreqoutput)
+            export_nucfreq_table(nacounts, nucfreqoutput, preserve_ins_detail)
 
             samplename = sampath.rsplit('/', 1)[-1].split('_', 1)[0]
             export_mutcor_table(patterns, muts, samplename, mutcoroutput)
